@@ -1,23 +1,28 @@
 import Foundation
 import CryptoKit
+import SystemConfiguration
 
 // MARK: Network Request
 
 func getData(urlRequest: String) {
-    guard let url = URL(string: urlRequest) else { return }
-    
-    URLSession.shared.dataTask(with: url) { data, response, error in
-        if let error = error {
-            print("Error: \(error.localizedDescription)")
-        } else if let response = response as? HTTPURLResponse, response.statusCode == 200 {
-            print("Done! Status Code: \(response.statusCode) -> ", terminator: "")
-            if let data = data, let dataAsString = String(data: data, encoding: .utf8) {
-                parseData(dataAsString)
+    if WiFiChecker.isWiFiAvailable() {
+        guard let url = URL(string: urlRequest) else { return }
+        
+        URLSession.shared.dataTask(with: url) { data, response, error in
+            if let error = error {
+                print("Error: \(error.localizedDescription)")
+            } else if let response = response as? HTTPURLResponse, response.statusCode == 200 {
+                print("Done! Status Code: \(response.statusCode) -> ", terminator: "")
+                if let data = data, let dataAsString = String(data: data, encoding: .utf8) {
+                    parseData(dataAsString)
+                }
+            } else if let response = response as? HTTPURLResponse {
+                print("Status Code: \(response.statusCode). Failed to fetch data. Verify the URL.")
             }
-        } else if let response = response as? HTTPURLResponse {
-            print("Status Code: \(response.statusCode). Failed to fetch data. Verify the URL.")
-        }
-    }.resume()
+        }.resume()
+    } else {
+        print("Wi-Fi is not available")
+    }
 }
 
 func parseData(_ dataAsString: String) {
@@ -26,7 +31,7 @@ func parseData(_ dataAsString: String) {
         print("JSON serialization failed")
         return
     }
-
+    
     if let fact = jsonObject["facts"] {
         processFact(fact)
     } else if let data = jsonObject["data"] as? [String: Any],
@@ -63,4 +68,29 @@ let marvelUrl = "https://gateway.marvel.com:443/v1/public/characters/1011136?ts=
 getData(urlRequest: marvelUrl)
 
 
-
+class WiFiChecker {
+    
+    static func isWiFiAvailable() -> Bool {
+        var zeroAddress = sockaddr()
+        zeroAddress.sa_len = UInt8(MemoryLayout.size(ofValue: zeroAddress))
+        zeroAddress.sa_family = sa_family_t(AF_INET)
+        
+        guard let reachability = withUnsafePointer(to: &zeroAddress, {
+            $0.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                SCNetworkReachabilityCreateWithAddress(nil, $0)
+            }
+        }) else {
+            return false
+        }
+        
+        var flags: SCNetworkReachabilityFlags = []
+        if !SCNetworkReachabilityGetFlags(reachability, &flags) {
+            return false
+        }
+        
+        let isReachable = flags.contains(.reachable)
+        let needsConnection = flags.contains(.connectionRequired)
+        
+        return isReachable && !needsConnection
+    }
+}
