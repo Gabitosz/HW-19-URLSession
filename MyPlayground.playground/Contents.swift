@@ -1,7 +1,7 @@
 import Foundation
 import CryptoKit
 
-// MARK: Network Request
+// MARK: Base Network Request
 
 func getData(urlRequest: String) {
     guard let url = URL(string: urlRequest) else { return }
@@ -26,14 +26,14 @@ func parseData(_ dataAsString: String) {
         print("JSON serialization failed")
         return
     }
-
+    
     if let fact = jsonObject["facts"] {
         processFact(fact)
     } else if let data = jsonObject["data"] as? [String: Any],
               let results = data["results"] as? [[String: Any]],
               let character = results.first,
               let name = character["name"] as? String {
-        print("Marvel Character Name: \(name)")
+        print("Character Name: \(name)")
     } else {
         print("Key 'facts' or 'data' doesn't found")
     }
@@ -61,6 +61,3 @@ getData(urlRequest: url)
 
 let marvelUrl = "https://gateway.marvel.com:443/v1/public/characters/1011136?ts=1&apikey=cbb2452d6645b4338f0e732373eb6647&hash=dbf085cf11af35cfb528412c9a11d58d"
 getData(urlRequest: marvelUrl)
-
-
-
